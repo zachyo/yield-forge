@@ -125,25 +125,32 @@ contract DeployStrategiesBase is Script {
  * @title DeployStrategiesArbitrum
  * @notice Deployment script for Arbitrum network
  */
-contract DeployStrategiesArbitrum is Script {
-    // Arbitrum addresses
-    address constant AAVE_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD;
-    address constant USDC = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-    address constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+contract DeployStrategiesSepolia is Script {
+    // Sepolia addresses
+    address constant AAVE_POOL = 0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951;
+    address constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+    address constant WETH = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14; // Sepolia WETH
 
-    address constant USDC_COMET = 0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf;
+    // Compound V3 USDC Comet on Sepolia
+    address constant USDC_COMET = 0xc3d688B66703497DAA19211EEdff47f25384cdc3;
 
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
-        console2.log("Deploying to Arbitrum...");
+        console2.log("Deploying to Sepolia...");
 
         // Deploy Aave V3 Strategy
+        console2.log("Deploying Aave V3 Strategy...");
         AaveV3Strategy aaveStrategy = new AaveV3Strategy(AAVE_POOL);
         console2.log("Aave V3 Strategy deployed at:", address(aaveStrategy));
 
+        // Configure Aave currencies
+        // Note: You need to find the aToken addresses for Sepolia if you want to configure them
+        // For now we just deploy the strategy
+
         // Deploy Compound V3 Strategy
+        console2.log("\nDeploying Compound V3 Strategy...");
         CompoundV3Strategy compoundStrategy = new CompoundV3Strategy(
             USDC_COMET
         );
@@ -152,14 +159,18 @@ contract DeployStrategiesArbitrum is Script {
             address(compoundStrategy)
         );
 
-        // Configure Compound
+        // Configure Compound currency
+        console2.log("Configuring Compound currency...");
         compoundStrategy.configureCurrency(Currency.wrap(USDC));
-        console2.log("Compound configured for USDC");
+        console2.log("  - USDC configured");
 
         vm.stopBroadcast();
 
-        console2.log("\n=== Arbitrum Deployment Complete ===");
+        console2.log("\n=== Sepolia Deployment Summary ===");
         console2.log("Aave V3 Strategy:", address(aaveStrategy));
         console2.log("Compound V3 Strategy:", address(compoundStrategy));
+        console2.log("\nNext steps:");
+        console2.log("1. Register strategies in StrategyRegistry");
+        console2.log("2. Update frontend with strategy addresses");
     }
 }

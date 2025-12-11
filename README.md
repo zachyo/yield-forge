@@ -1,259 +1,140 @@
-# YieldForge 🔥
+# 🌾 YieldForge
 
-**Automated External Yield Optimization Hook for Uniswap v4**
+![YieldForge Banner](https://via.placeholder.com/1200x300?text=YieldForge+Uniswap+v4+Hook)
 
-Turn every Uniswap v4 LP position into a self-compounding, higher-yield money machine — without ever having to claim fees manually.
+> **Turn every Uniswap v4 LP position into a self-compounding, higher-yield money machine.**
 
-## 🎯 What is YieldForge?
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-repo/yield-forge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Uniswap v4](https://img.shields.io/badge/Uniswap-v4-pink)](https://github.com/Uniswap/v4-core)
+[![Aave V3](https://img.shields.io/badge/Integrated-Aave%20V3-purple)](https://aave.com/)
+[![Compound V3](https://img.shields.io/badge/Integrated-Compound%20V3-green)](https://compound.finance/)
 
-YieldForge is a Uniswap v4 hook that automatically sweeps accrued trading fees and redeploys them into the highest risk-adjusted external yield opportunities (Aave, Compound, Yearn, Pendle, Morpho, EigenLayer LSTs, etc.) based on each LP's chosen strategy.
+## 📖 Table of Contents
 
-### Key Features
+- [The Problem](#-the-problem)
+- [The Solution](#-the-solution)
+- [Key Features](#-key-features)
+- [Partner Integrations](#-partner-integrations)
+- [Architecture](#-architecture)
+- [Getting Started](#-getting-started)
+- [Frontend Dashboard](#-frontend-dashboard)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+- [Demo](#-demo)
 
-- ✅ **Automatic Fee Sweeping**: Fees are automatically collected and invested
-- ✅ **Multiple Yield Strategies**: Choose between Aave, Compound, and more
-- ✅ **Permissionless**: Anyone can trigger sweeps and earn rewards
-- ✅ **Gas Efficient**: Batched operations minimize costs
-- ✅ **Fully Tested**: 100% test coverage on critical paths
+## 🛑 The Problem
 
-## 🚀 Quick Start
+Liquidity Providers (LPs) on Uniswap v4 earn trading fees, but these fees often sit idle in the pool until manually claimed. This capital inefficiency means LPs miss out on potential yield from other DeFi protocols. Manually claiming and reinvesting fees is gas-expensive and time-consuming.
+
+## 🚀 The Solution
+
+**YieldForge** is a Uniswap v4 hook that automatically sweeps accrued trading fees and redeploys them into the highest risk-adjusted external yield opportunities.
+
+- **Automated Sweeping:** Fees are automatically collected when they reach a threshold.
+- **Yield Compounding:** Idle fees are deposited into Aave V3 or Compound V3 to earn lending interest.
+- **Gas Efficient:** Batch processing and permissionless sweeping with incentives.
+
+## ✨ Key Features
+
+- **Strategy-Agnostic:** Supports multiple yield strategies (Aave, Compound, and extensible for more).
+- **Per-Position Configuration:** LPs can choose different strategies for different positions.
+- **Permissionless Sweeping:** Anyone can trigger the sweep and earn a reward (0.2% of swept fees).
+- **Real-Time Dashboard:** A Next.js frontend to track extra yield earned and manage strategies.
+- **Secure Accounting:** Uses the Checks-Effects-Interactions pattern and robust fee tracking via `PoolManager`.
+
+## 🤝 Partner Integrations
+
+YieldForge integrates with leading DeFi protocols to generate yield:
+
+| Partner         | Integration Details                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Aave V3**     | Fees are deposited into Aave V3 lending pools to earn interest on supplied assets (e.g., USDC, ETH). Uses `AaveV3Strategy.sol`. |
+| **Compound V3** | Fees are supplied to Compound V3 (Comet) markets to earn yield on base assets. Uses `CompoundV3Strategy.sol`.                   |
+
+## 🏗 Architecture
+
+```mermaid
+graph TD
+    User[Liquidity Provider] -->|Add Liquidity| Pool[Uniswap v4 Pool]
+    Pool -->|Hook Callback| Hook[YieldForgeHook]
+    Hook -->|Track Fees| Storage[Fee Tracking]
+
+    Keeper[Keeper/Sweeper] -->|Call sweep()| Hook
+    Hook -->|1. Collect Fees| Pool
+    Hook -->|2. Deposit Fees| Strategy[Strategy Registry]
+
+    Strategy -->|Deposit| Aave[Aave V3]
+    Strategy -->|Deposit| Compound[Compound V3]
+
+    User -->|Withdraw Yield| Hook
+    Hook -->|Redeem Shares| Strategy
+```
+
+## 🛠 Getting Started
 
 ### Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation)
-- Node.js 16+ (for frontend)
+- [Node.js](https://nodejs.org/) (v18+)
+- [Bun](https://bun.sh/) or [Yarn](https://yarnpkg.com/)
 
 ### Installation
 
-```bash
-git clone https://github.com/your-repo/yield-forge
-cd yield-forge
-forge install
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/yield-forge.git
+   cd yield-forge
+   ```
+2. Install dependencies:
+   ```bash
+   forge install
+   cd frontend && npm install
+   ```
 
-### Run Tests
+## 🖥 Frontend Dashboard
 
-```bash
-# Run all tests
-forge test
+YieldForge comes with a modern dashboard to manage your positions and view earned yield.
 
-# Run with verbosity
-forge test -vv
-
-# Run specific test file
-forge test --match-path test/YieldForgeHook.t.sol -vv
-
-# Run fork tests (requires MAINNET_RPC_URL in .env)
-forge test --match-path test/StrategyIntegration.t.sol --fork-url $MAINNET_RPC_URL -vv
-```
-
-### Build
-
-```bash
-forge build
-```
-
-## 📖 Documentation
-
-- **[PRD.md](./PRD.md)**: Full product requirements and vision
-- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)**: Technical implementation details
-- **[STRATEGY_INTEGRATION.md](./STRATEGY_INTEGRATION.md)**: Guide for integrating yield strategies
-
-## 🏗️ Architecture
-
-```
-Uniswap v4 Pool
-    ↓
-YieldForgeHook (tracks fees & positions)
-    ↓
-StrategyRegistry (manages strategies)
-    ↓
-┌─────────────┬──────────────────┐
-│             │                  │
-AaveV3      Compound V3      Custom
-Strategy     Strategy         Strategies
-```
-
-### Core Contracts
-
-1. **YieldForgeHook.sol**: Main hook implementation
-2. **StrategyRegistry.sol**: Manages whitelisted yield strategies
-3. **PositionConfig.sol**: Stores per-position configuration
-4. **AaveV3Strategy.sol**: Aave V3 lending integration
-5. **CompoundV3Strategy.sol**: Compound V3 (Comet) integration
-
-## 💡 Usage Example
-
-### For Liquidity Providers
-
-```solidity
-// 1. Add liquidity with strategy configuration
-bytes memory hookData = abi.encode(
-    msg.sender,      // Position owner
-    uint8(0),        // Strategy ID (0 = Aave, 1 = Compound)
-    uint128(1e18)    // Minimum sweep threshold
-);
-
-modifyLiquidityRouter.modifyLiquidity(poolKey, params, hookData);
-
-// 2. Fees automatically accumulate and get swept to your chosen strategy
-// 3. Earn extra yield on top of LP fees!
-```
-
-### For Sweepers (Anyone!)
-
-```solidity
-// Trigger a sweep and earn 0.2% of swept fees
-hook.sweep(poolKey);
-```
-
-## 🔧 Deployment
-
-### Deploy Strategies
-
-```bash
-# Mainnet
-forge script script/DeployStrategies.s.sol --rpc-url $MAINNET_RPC_URL --broadcast
-
-# Base
-forge script script/DeployStrategies.s.sol:DeployStrategiesBase --rpc-url $BASE_RPC_URL --broadcast
-
-# Arbitrum
-forge script script/DeployStrategies.s.sol:DeployStrategiesArbitrum --rpc-url $ARBITRUM_RPC_URL --broadcast
-```
-
-### Deploy Hook
-
-```bash
-forge script script/DeployYieldForge.s.sol --rpc-url $RPC_URL --broadcast
-```
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🧪 Testing
 
-### Test Coverage
+We have a comprehensive test suite covering core logic, strategy integrations, and fork tests.
 
-- ✅ Position tracking with multiple users
-- ✅ Fee accumulation and tracking
-- ✅ Sweep mechanism with rewards
-- ✅ Strategy integration (Aave & Compound)
-- ✅ Error handling and edge cases
-- ✅ Fork tests with real protocols
+**Run all tests:**
 
-### Current Test Results
-
-```
-Ran 10 tests for test/YieldForgeHook.t.sol:YieldForgeHookForkTest
-[PASS] testActivePositionsTracking()
-[PASS] testAddLiquidityWithStrategy()
-[PASS] testFeeTracking()
-[PASS] testGetAccumulatedFees()
-[PASS] testGetTotalPoolFees()
-[PASS] testHookPermissions()
-[PASS] testMultiplePositions()
-[PASS] testSetup()
-[PASS] testStrategyIntegration()
-[PASS] testSweepRevertWithNoPositions()
-
-Suite result: ok. 10 passed; 0 failed; 0 skipped
+```bash
+forge test
 ```
 
-## 🌐 Supported Networks
+**Run specific strategy tests (requires Mainnet Fork):**
 
-### Mainnet
+```bash
+forge test --match-contract StrategyIntegrationTest
+```
 
-- Aave V3 Pool: `0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2`
-- Compound USDC Comet: `0xc3d688B66703497DAA19211EEdff47f25384cdc3`
+## 🚀 Deployment
 
-### Base
+To deploy the contracts to a network (e.g., Sepolia):
 
-- Aave V3 Pool: `0xA238Dd80C259a72e81d7e4664a9801593F98d1c5`
-- Compound USDC Comet: `0xb125E6687d4313864e53df431d5425969c15Eb2F`
+```bash
+forge script script/DeployStrategies.s.sol --rpc-url <YOUR_RPC_URL> --private-key <YOUR_PRIVATE_KEY> --broadcast
+```
 
-### Arbitrum
+## 🎥 Demo
 
-- Aave V3 Pool: `0x794a61358D6845594F94dc1DB02A252b5b4814aD`
-- Compound USDC Comet: `0x9c4ec768c28520B50860ea7a15bd7213a9fF58bf`
-
-## 🔐 Security
-
-### Audits
-
-- [ ] Internal review complete
-- [ ] External audit pending
-
-### Security Features
-
-- ✅ CEI (Checks-Effects-Interactions) pattern throughout
-- ✅ No direct token transfers (uses CurrencyLibrary)
-- ✅ Governance-controlled strategy registry
-- ✅ Position-specific configurations
-- ✅ Event emissions for transparency
-
-### Known Limitations
-
-- Sweep iterates over all positions (O(n)) - consider batching for large pools
-- Strategy risks inherit from underlying protocols (Aave, Compound)
-- No emergency pause mechanism (planned for v2)
-
-## 🛣️ Roadmap
-
-### Phase 1: MVP (Current)
-
-- ✅ Core hook implementation
-- ✅ Aave V3 integration
-- ✅ Compound V3 integration
-- ✅ Basic testing
-
-### Phase 2: Enhanced Strategies
-
-- [ ] Yearn vault integration
-- [ ] Pendle PT/YT strategies
-- [ ] EigenLayer LST strategies
-- [ ] Multi-strategy auto-rebalancing
-
-### Phase 3: Production Ready
-
-- [ ] Comprehensive audit
-- [ ] Gas optimization
-- [ ] Emergency mechanisms
-- [ ] Governance implementation
-- [ ] Frontend dashboard
-
-### Phase 4: Advanced Features
-
-- [ ] Risk-adjusted strategy selection
-- [ ] Cross-chain support
-- [ ] Strategy performance analytics
-- [ ] Automated rebalancing
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-## 📄 License
-
-MIT License - see [LICENSE](./LICENSE) file for details
-
-## 🙏 Acknowledgments
-
-- Uniswap v4 team for the amazing hook system
-- Aave and Compound teams for battle-tested DeFi protocols
-- Foundry team for excellent development tools
-
-## 📞 Contact
-
-- GitHub Issues: [Create an issue](https://github.com/your-repo/issues)
-- Twitter: [@YieldForge](https://twitter.com/yieldforge)
-- Discord: [Join our community](https://discord.gg/yieldforge)
+Check out our demo video to see YieldForge in action:
+[**Read the pitch deck**](#) _([Link to Pitch Deck](https://yieldforge-94u9wv4.gamma.site/))_
 
 ---
 
-**Built with ❤️ using Solidity, Foundry, and Uniswap v4**
-
-_YieldForge: Making every LP position work harder for you_ 🔥
+**Built for the Atrium Academy Uniswap Hook Incubator (UHI)**

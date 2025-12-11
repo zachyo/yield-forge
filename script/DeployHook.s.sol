@@ -1,52 +1,75 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity ^0.8.24;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
-// import "forge-std/Script.sol";
-// import "../src/PointsHook.sol";
-// import {HookMiner} from "v4-periphery/src/utils/HookMiner.sol";
+import "forge-std/Script.sol";
+import {YieldForgeHook} from "../src/YieldForgeHook.sol";
+import {YieldForgeFactory} from "../src/YieldForgeFactory.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {HookMiner} from "v4-periphery/src/utils/HookMiner.sol";
 
-// contract DeployHook is Script {
-//     function run() external {
-//         // user pkey for transaction
-//         uint privateKey = vm.envUint("PRIVATE_KEY");
-        
-//         // https://docs.uniswap.org/contracts/v4/deployments (deploy on any chain you wish) (currently on base sepolia)
-//         address poolManager = vm.envAddress("POOL_MANAGER_ADDRESS");
+contract DeployHook is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
-//         // https://getfoundry.sh/guides/deterministic-deployments-using-create2/#getting-started
-//         address create2Deployer = vm.envAddress("CREATE2_DEPLOYER");
+        // Sepolia PoolManager
+        address poolManager = vm.envAddress("POOL_MANAGER_ADDRESS");
 
-//         // TODO: Implement HookMiner logic to generate salt for valid hook address
+        vm.startBroadcast(deployerPrivateKey);
 
-//         // For v4 hooks, you need to mine a salt that produces an address
-//         // with specific leading bits matching the hook permissions
-//         // The address determines which hooks are enabled
+        // 1. Deploy Factory
+        console.log("Deploying YieldForgeFactory...");
+        YieldForgeFactory factory = new YieldForgeFactory(
+            IPoolManager(poolManager)
+        );
+        console.log("YieldForgeFactory deployed at:", address(factory));
 
-//         // Salt has been mined outside off chain
-//         uint160 flags = uint160(Hooks.AFTER_SWAP_FLAG);
-//         (address expectedHookAddy, bytes32 salt) = HookMiner.find(
-//             create2Deployer,
-//             flags,
-//             type(PointsHook).creationCode,
-//             abi.encode(IPoolManager(poolManager))
-//         );
+        // 2. Mine Salt for Hook
+        console.log("Mining salt for Hook...");
 
-//         console.log("Expected hook address:", expectedHookAddy);
-//         console.log("Deployer address:", create2Deployer);
-//         console.logBytes32(salt);
+        uint160 flags = uint160(
+            Hooks.AFTER_INITIALIZE_FLAG |
+                Hooks.AFTER_ADD_LIQUIDITY_FLAG |
+                Hooks.AFTER_REMOVE_LIQUIDITY_FLAG |
+                Hooks.AFTER_SWAP_FLAG
+        );
 
-//         vm.startBroadcast(privateKey);
+        // Prepare constructor arguments for the hook
+        bytes memory constructorArgs = abi.encode(
+            factory.poolManager(),
+            factory.strategyRegistry(),
+            factory.positionConfig()
+        );
 
-//         PointsHook hook = new PointsHook{salt: salt}(IPoolManager(poolManager));
-//         require(
-//             address(hook) == expectedHookAddy,
-//             "PointsHookScript: hook address mismatch"
-//         );
+        // Use HookMiner to find a salt
+        (address expectedHookAddress, bytes32 salt) = HookMiner.find(
+            address(factory),
+            flags,
+            type(YieldForgeHook).creationCode,
+            constructorArgs
+        );
 
-//         vm.stopBroadcast();
-//     }
-// }
+        console.log("Expected Hook Address:", expectedHookAddress);
+        console.logBytes32(salt);
 
+        // 3. Deploy Hook
+        console.log("Deploying YieldForgeHook...");
+        address hookAddress = factory.deployHook(salt);
+        console.log("YieldForgeHook deployed at:", hookAddress);
 
-// // Live run: forge script script/DeployHook.s.sol --rpc-url $FORK_URL --chain-id <<chain of your choice>> --broadcast --verify
-// //  remove broadcast and verify flags for testing purposes
+        require(hookAddress == expectedHookAddress, "Hook address mismatch");
+
+        require(
+            uint160(hookAddress) & flags == flags,
+            "Hook address does not have correct flags"
+        );
+
+        vm.stopBroadcast();
+
+        console.log("\n=== Deployment Summary ===");
+        console.log("Factory:", address(factory));
+        console.log("Hook:", hookAddress);
+        console.log("StrategyRegistry:", address(factory.strategyRegistry()));
+        console.log("PositionConfig:", address(factory.positionConfig()));
+    }
+}
