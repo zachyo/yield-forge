@@ -60,7 +60,7 @@ graph TD
     Pool -->|Hook Callback| Hook[YieldForgeHook]
     Hook -->|Track Fees| Storage[Fee Tracking]
 
-    Keeper[Keeper/Sweeper] -->|Call sweep()| Hook
+    Keeper["Keeper/Sweeper"] -->|Call sweep| Hook
     Hook -->|1. Collect Fees| Pool
     Hook -->|2. Deposit Fees| Strategy[Strategy Registry]
 
